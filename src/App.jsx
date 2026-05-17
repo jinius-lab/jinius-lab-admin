@@ -221,6 +221,26 @@ const AddExamModal = memo(({ students, onClose, onSave }) => {
 // ══════════════════════════════════════
 // 메인 앱
 // ══════════════════════════════════════
+// ── 커리큘럼 단계 추가 행 (분리 컴포넌트 → 버벅임 없음) ──
+const CurriculumAddRow = memo(({ studentId, onAdd }) => {
+  const [label, setLabel] = useState("");
+  const [desc, setDesc] = useState("");
+  const handleAdd = () => {
+    if (!label.trim()) return;
+    onAdd(label.trim(), desc.trim());
+    setLabel(""); setDesc("");
+  };
+  return (
+    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+      <input placeholder="단계 이름 (예: 준동사 완성)" value={label} onChange={e => setLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()}
+        style={{ flex: 2, padding: "8px 12px", borderRadius: 8, border: "1px solid #2a2a38", background: "#0f0f13", color: "#e8e4f0", fontSize: 13, fontFamily: "'Noto Sans KR', sans-serif", outline: "none" }} />
+      <input placeholder="설명 (선택)" value={desc} onChange={e => setDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()}
+        style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: "1px solid #2a2a38", background: "#0f0f13", color: "#e8e4f0", fontSize: 13, fontFamily: "'Noto Sans KR', sans-serif", outline: "none" }} />
+      <button onClick={handleAdd} style={{ padding: "8px 16px", borderRadius: 8, background: "#c084fc", border: "none", color: "#0f0f13", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>+ 추가</button>
+    </div>
+  );
+});
+
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [pw, setPw] = useState("");
@@ -463,50 +483,60 @@ export default function App() {
 
         {/* 커리큘럼 */}
         {tab === "curriculum" && <>
-          <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 4 }}>커리큘럼 & 현 위치</h1>
-          <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>전체 목표 로드맵과 각 학생의 현재 진도</p>
-          <div style={{ ...card, marginBottom: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#c084fc", marginBottom: 22 }}>📍 전체 커리큘럼 로드맵</div>
-            <div style={{ display: "flex", alignItems: "flex-start" }}>
-              {CURRICULUM_STEPS.map((s, i) => (
-                <div key={s.step} style={{ display: "flex", alignItems: "flex-start", flex: 1 }}>
-                  <div style={{ textAlign: "center", flex: 1, padding: "0 4px" }}>
-                    <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg,#c084fc,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontWeight: 700, fontSize: 16, color: "#0f0f13" }}>{s.step}</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#e8e4f0", marginBottom: 3 }}>{s.label}</div>
-                    <div style={{ fontSize: 11, color: "#6b7280" }}>{s.desc}</div>
-                  </div>
-                  {i < CURRICULUM_STEPS.length - 1 && <div style={{ width: 28, height: 2, background: "#2a2a38", marginTop: 20, flexShrink: 0 }} />}
-                </div>
-              ))}
-            </div>
-          </div>
+          <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 4 }}>커리큘럼</h1>
+          <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>학생별로 커리큘럼 단계를 직접 추가하고 관리해요</p>
           {students.length === 0 ? emptyBox("🗺️", "학생을 먼저 등록해주세요") : (
-            <div style={{ ...card, padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "13px 22px", background: "#1e1e2e", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>학생별 현재 위치</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {students.map(s => {
-                const step = s.curriculumStep || 1;
-                const pct = ((step - 1) / (CURRICULUM_STEPS.length - 1)) * 100;
+                const steps = s.curriculum || [];
+                const done = steps.filter(c => c.done).length;
+                const pct = steps.length === 0 ? 0 : Math.round((done / steps.length) * 100);
                 return (
-                  <div key={s.id} style={{ padding: "18px 22px", borderTop: "1px solid #2a2a38" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div key={s.id} style={{ ...card }}>
+                    {/* 헤더 */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontWeight: 600 }}>{s.name}</span>
+                        <span style={{ fontWeight: 700, fontSize: 16 }}>{s.name}</span>
                         <span style={tag(gradeColor(s.grade))}>{s.grade}</span>
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{done}/{steps.length} 완료</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#c084fc" }}>STEP {step}</span>
-                        <span style={{ fontSize: 12, color: "#6b7280" }}>{CURRICULUM_STEPS[step - 1]?.label}</span>
-                        <select value={step} onChange={e => updateCurriculum(s.id, parseInt(e.target.value))} style={{ ...inp, width: "auto", padding: "4px 8px", fontSize: 12 }}>
-                          {CURRICULUM_STEPS.map(cs => <option key={cs.step} value={cs.step}>STEP {cs.step}</option>)}
-                        </select>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: pct === 100 ? "#34d399" : "#c084fc" }}>{pct}%</span>
+                    </div>
+
+                    {/* 프로그레스 바 */}
+                    {steps.length > 0 && (
+                      <div style={{ background: "#2a2a38", borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 14 }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#818cf8,#c084fc)", borderRadius: 99, transition: "width 0.4s" }} />
                       </div>
-                    </div>
-                    <div style={{ background: "#2a2a38", borderRadius: 99, height: 7, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#818cf8,#c084fc)", borderRadius: 99, transition: "width 0.4s" }} />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, fontSize: 11, color: "#4b5563" }}>
-                      <span>기초 문법</span><span>최종 마무리</span>
-                    </div>
+                    )}
+
+                    {/* 단계 목록 */}
+                    {steps.length === 0
+                      ? <div style={{ fontSize: 13, color: "#4b5563", marginBottom: 14 }}>아직 커리큘럼이 없어요. 아래에서 추가해보세요!</div>
+                      : steps.map((c, i) => (
+                        <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #2a2a38" }}>
+                          <button onClick={() => {
+                            const updated = steps.map((x, xi) => xi === i ? { ...x, done: !x.done } : x);
+                            setStudents(p => p.map(st => st.id === s.id ? { ...st, curriculum: updated } : st));
+                          }} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${c.done ? "#34d399" : "#374151"}`, background: c.done ? "#34d399" : "transparent", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#0f0f13" }}>
+                            {c.done ? "✓" : ""}
+                          </button>
+                          <span style={{ flex: 1, fontSize: 14, color: c.done ? "#4b5563" : "#e8e4f0", textDecoration: c.done ? "line-through" : "none" }}>{c.label}</span>
+                          {c.desc && <span style={{ fontSize: 11, color: "#6b7280" }}>{c.desc}</span>}
+                          <button onClick={() => {
+                            if (!window.confirm("삭제할까요?")) return;
+                            const updated = steps.filter((_, xi) => xi !== i);
+                            setStudents(p => p.map(st => st.id === s.id ? { ...st, curriculum: updated } : st));
+                          }} style={{ background: "none", border: "none", color: "#374151", cursor: "pointer", fontSize: 13 }}>✕</button>
+                        </div>
+                      ))
+                    }
+
+                    {/* 단계 추가 인라인 */}
+                    <CurriculumAddRow studentId={s.id} onAdd={(label, desc) => {
+                      const updated = [...steps, { id: Date.now(), label, desc, done: false }];
+                      setStudents(p => p.map(st => st.id === s.id ? { ...st, curriculum: updated } : st));
+                    }} />
                   </div>
                 );
               })}
