@@ -31,7 +31,13 @@ const load = (key, fallback) => {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
   catch { return fallback; }
 };
-const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
+const saveTimers = {};
+const save = (key, val) => {
+  clearTimeout(saveTimers[key]);
+  saveTimers[key] = setTimeout(() => {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+  }, 400);
+};
 
 async function generateMessage(student, templateKey, extra) {
   const prompts = {
