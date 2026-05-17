@@ -1,39 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const PASSWORD = "1234";
-
-const initialStudents = [
-  { id: 1, name: "김민준", school: "홀로중", grade: "중2", paid: true, courses: ["코어그래머", "해석의 법칙"], curriculumStep: 3 },
-  { id: 2, name: "이서연", school: "위드고", grade: "고1", paid: true, courses: ["코어그래머"], curriculumStep: 5 },
-  { id: 3, name: "박지호", school: "홀로고", grade: "고2", paid: false, courses: ["해석의 법칙", "쎈"], curriculumStep: 2 },
-  { id: 4, name: "최아린", school: "위드초", grade: "초6", paid: true, courses: ["코어그래머"], curriculumStep: 1 },
-  { id: 5, name: "정우진", school: "홀로중", grade: "중3", paid: false, courses: ["쎈"], curriculumStep: 4 },
-  { id: 6, name: "한소율", school: "위드고", grade: "고3", paid: true, courses: ["해석의 법칙"], curriculumStep: 6 },
-];
-
-const initialLessons = [
-  { id: 1, day: "월", student: "김민준", course: "코어그래머", time: "15:00" },
-  { id: 2, day: "월", student: "이서연", course: "코어그래머", time: "16:00" },
-  { id: 3, day: "화", student: "박지호", course: "해석의 법칙", time: "15:00" },
-  { id: 4, day: "수", student: "최아린", course: "코어그래머", time: "14:00" },
-  { id: 5, day: "목", student: "정우진", course: "쎈", time: "17:00" },
-  { id: 6, day: "금", student: "한소율", course: "해석의 법칙", time: "16:00" },
-];
-
-const initialHomework = [
-  { id: 1, student: "김민준", task: "코어그래머 Unit 3", submitted: true, date: "2026-05-15" },
-  { id: 2, student: "이서연", task: "코어그래머 Unit 3", submitted: true, date: "2026-05-15" },
-  { id: 3, student: "박지호", task: "해석의 법칙 Ch.2", submitted: false, date: "2026-05-15" },
-  { id: 4, student: "최아린", task: "코어그래머 Unit 2", submitted: true, date: "2026-05-14" },
-  { id: 5, student: "정우진", task: "쎈 수학 연습문제", submitted: false, date: "2026-05-14" },
-];
-
-const initialExams = [
-  { id: 1, student: "김민준", exam: "1학기 중간고사", subject: "영어", score: 88, date: "2026-05-01" },
-  { id: 2, student: "이서연", exam: "3월 모의고사", subject: "사회", score: 92, date: "2026-03-20" },
-  { id: 3, student: "박지호", exam: "1학기 중간고사", subject: "수학", score: 75, date: "2026-05-01" },
-  { id: 4, student: "한소율", exam: "3월 모의고사", subject: "영어", score: 95, date: "2026-03-20" },
-];
 
 const CURRICULUM_STEPS = [
   { step: 1, label: "기초 문법", desc: "품사·문장구조 기초" },
@@ -58,6 +25,13 @@ const SCHOOL_COLORS = {
   "위드중": "#a78bfa", "위드고": "#a78bfa", "위드초": "#a78bfa",
 };
 const sc = (s) => SCHOOL_COLORS[s] || "#94a3b8";
+
+// localStorage 유틸
+const load = (key, fallback) => {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+};
+const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
 
 async function generateMessage(student, templateKey, extra) {
   const prompts = {
@@ -91,11 +65,36 @@ export default function App() {
   const [pw, setPw] = useState("");
   const [pwErr, setPwErr] = useState(false);
   const [tab, setTab] = useState("dashboard");
-  const [students, setStudents] = useState(initialStudents);
+
+  // 데이터 — localStorage에서 불러오기
+  const [students, setStudentsRaw] = useState(() => load("jl_students", []));
+  const [lessons, setLessonsRaw] = useState(() => load("jl_lessons", []));
+  const [homework, setHomeworkRaw] = useState(() => load("jl_homework", []));
+  const [exams, setExamsRaw] = useState(() => load("jl_exams", []));
+
+  // 저장 래퍼
+  const setStudents = (v) => { const d = typeof v === "function" ? v(students) : v; setStudentsRaw(d); save("jl_students", d); };
+  const setLessons = (v) => { const d = typeof v === "function" ? v(lessons) : v; setLessonsRaw(d); save("jl_lessons", d); };
+  const setHomework = (v) => { const d = typeof v === "function" ? v(homework) : v; setHomeworkRaw(d); save("jl_homework", d); };
+  const setExams = (v) => { const d = typeof v === "function" ? v(exams) : v; setExamsRaw(d); save("jl_exams", d); };
+
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [newS, setNewS] = useState({ name: "", school: "", grade: "", courses: "" });
 
+  // 수업 추가
+  const [showAddLesson, setShowAddLesson] = useState(false);
+  const [newL, setNewL] = useState({ day: "월", student: "", course: "", time: "" });
+
+  // 과제 추가
+  const [showAddHW, setShowAddHW] = useState(false);
+  const [newHW, setNewHW] = useState({ student: "", task: "", submitted: false, date: new Date().toISOString().slice(0, 10) });
+
+  // 시험 추가
+  const [showAddExam, setShowAddExam] = useState(false);
+  const [newExam, setNewExam] = useState({ student: "", exam: "", subject: "", score: "", date: new Date().toISOString().slice(0, 10) });
+
+  // 메시지
   const [msgStudent, setMsgStudent] = useState("");
   const [msgTemplate, setMsgTemplate] = useState("class");
   const [msgExtra, setMsgExtra] = useState("");
@@ -105,15 +104,39 @@ export default function App() {
 
   const unpaid = students.filter(s => !s.paid);
   const paid = students.filter(s => s.paid);
-  const todayLessons = initialLessons.filter(l => l.day === "월");
+  const todayDay = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
+  const todayLessons = lessons.filter(l => l.day === todayDay);
   const filtered = students.filter(s => s.name.includes(search) || s.school.includes(search) || s.grade.includes(search));
 
   const togglePaid = (id) => setStudents(students.map(s => s.id === id ? { ...s, paid: !s.paid } : s));
+  const deleteStudent = (id) => { if (window.confirm("삭제할까요?")) setStudents(students.filter(s => s.id !== id)); };
+  const deleteLesson = (id) => { if (window.confirm("삭제할까요?")) setLessons(lessons.filter(l => l.id !== id)); };
+  const deleteHW = (id) => { if (window.confirm("삭제할까요?")) setHomework(homework.filter(h => h.id !== id)); };
+  const deleteExam = (id) => { if (window.confirm("삭제할까요?")) setExams(exams.filter(e => e.id !== id)); };
+  const toggleHW = (id) => setHomework(homework.map(h => h.id === id ? { ...h, submitted: !h.submitted } : h));
+  const updateCurriculum = (id, step) => setStudents(students.map(s => s.id === id ? { ...s, curriculumStep: step } : s));
+
   const addStudent = () => {
     if (!newS.name) return;
     setStudents([...students, { id: Date.now(), ...newS, courses: newS.courses.split(",").map(c => c.trim()).filter(Boolean), paid: false, curriculumStep: 1 }]);
     setNewS({ name: "", school: "", grade: "", courses: "" }); setShowAdd(false);
   };
+  const addLesson = () => {
+    if (!newL.student || !newL.course) return;
+    setLessons([...lessons, { id: Date.now(), ...newL }]);
+    setNewL({ day: "월", student: "", course: "", time: "" }); setShowAddLesson(false);
+  };
+  const addHW = () => {
+    if (!newHW.student || !newHW.task) return;
+    setHomework([...homework, { id: Date.now(), ...newHW }]);
+    setNewHW({ student: "", task: "", submitted: false, date: new Date().toISOString().slice(0, 10) }); setShowAddHW(false);
+  };
+  const addExam = () => {
+    if (!newExam.student || !newExam.exam) return;
+    setExams([...exams, { id: Date.now(), ...newExam, score: parseInt(newExam.score) || 0 }]);
+    setNewExam({ student: "", exam: "", subject: "", score: "", date: new Date().toISOString().slice(0, 10) }); setShowAddExam(false);
+  };
+
   const handleLogin = () => { if (pw === PASSWORD) { setLoggedIn(true); setPwErr(false); } else { setPwErr(true); setPw(""); } };
   const handleGen = async () => {
     if (!msgStudent) return;
@@ -124,6 +147,9 @@ export default function App() {
   };
   const handleCopy = () => { navigator.clipboard.writeText(msgResult); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
+  const inputStyle = { width: "100%", padding: "10px 14px", borderRadius: 9, border: "1px solid #2a2a38", background: "#0f0f13", color: "#e8e4f0", fontSize: 14, fontFamily: "'Noto Sans KR', sans-serif", boxSizing: "border-box" };
+  const selectStyle = { ...inputStyle };
+
   const CSS = `
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Serif+Display&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
@@ -133,6 +159,27 @@ export default function App() {
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   `;
+
+  // 모달 공통
+  const Modal = ({ title, onClose, onSave, children }) => (
+    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+      <div style={{ ...S.card, width: 420, padding: 32, animation: "fadein 0.2s ease" }}>
+        <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, marginBottom: 20 }}>{title}</h2>
+        {children}
+        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+          <button onClick={onSave} style={{ flex: 1, background: "#c084fc", color: "#0f0f13", border: "none", borderRadius: 9, padding: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>추가</button>
+          <button onClick={onClose} style={{ flex: 1, background: "#1e1e2e", color: "#9ca3af", border: "1px solid #2a2a38", borderRadius: 9, padding: "11px", cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>취소</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const Field = ({ label, children }) => (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 5 }}>{label}</div>
+      {children}
+    </div>
+  );
 
   if (!loggedIn) return (
     <div style={{ minHeight: "100vh", background: "#0f0f13", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -148,11 +195,10 @@ export default function App() {
           <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>비밀번호</div>
           <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()}
             placeholder="비밀번호 입력" autoFocus
-            style={{ width: "100%", padding: "13px 16px", borderRadius: 10, border: `1px solid ${pwErr ? "#f87171" : "#2a2a38"}`, background: "#0f0f13", color: "#e8e4f0", fontSize: 15, fontFamily: "'Noto Sans KR', sans-serif", marginBottom: 6 }} />
+            style={{ ...inputStyle, border: `1px solid ${pwErr ? "#f87171" : "#2a2a38"}`, marginBottom: 6, fontSize: 15 }} />
           {pwErr && <div style={{ color: "#f87171", fontSize: 12, marginBottom: 6 }}>비밀번호가 틀렸어요</div>}
           <button onClick={handleLogin} style={{ width: "100%", background: "#c084fc", color: "#0f0f13", border: "none", borderRadius: 10, padding: "13px", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif", marginTop: 10 }}>로그인</button>
         </div>
-        <div style={{ textAlign: "center", fontSize: 11, color: "#374151", marginTop: 16 }}>기본 비밀번호: 1234 · 코드 상단에서 변경 가능</div>
       </div>
     </div>
   );
@@ -172,7 +218,6 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: "#0f0f13", color: "#e8e4f0", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <style>{CSS}</style>
 
-      {/* Sidebar */}
       <div style={{ position: "fixed", left: 0, top: 0, bottom: 0, width: 220, background: "#18181f", borderRight: "1px solid #2a2a38", display: "flex", flexDirection: "column", zIndex: 100 }}>
         <div style={{ padding: "28px 24px 22px", borderBottom: "1px solid #2a2a38" }}>
           <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: "#c084fc", letterSpacing: 0.5 }}>JINIUS-LAB</div>
@@ -194,12 +239,12 @@ export default function App() {
 
       <div style={{ marginLeft: 220, padding: "32px 36px", minHeight: "100vh", animation: "fadein 0.3s ease" }}>
 
-        {/* ── 대시보드 ── */}
+        {/* 대시보드 */}
         {tab === "dashboard" && <>
           <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 4 }}>대시보드</h1>
-          <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>2026년 5월 17일 일요일</p>
+          <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>{new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })}</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
-            {[{ label: "전체 학생", value: students.length, icon: "👥", color: "#818cf8" }, { label: "납부 완료", value: paid.length, icon: "✅", color: "#34d399" }, { label: "미납", value: unpaid.length, icon: "⚠️", color: "#f87171" }, { label: "내일 수업", value: todayLessons.length, icon: "📚", color: "#fbbf24" }].map(({ label, value, icon, color }) => (
+            {[{ label: "전체 학생", value: students.length, icon: "👥", color: "#818cf8" }, { label: "납부 완료", value: paid.length, icon: "✅", color: "#34d399" }, { label: "미납", value: unpaid.length, icon: "⚠️", color: "#f87171" }, { label: "오늘 수업", value: todayLessons.length, icon: "📚", color: "#fbbf24" }].map(({ label, value, icon, color }) => (
               <div key={label} style={{ ...S.card }}>
                 <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
                 <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
@@ -218,8 +263,8 @@ export default function App() {
               ))}
             </div>
             <div style={{ ...S.card }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fbbf24", marginBottom: 14 }}>📅 내일 수업 (월)</div>
-              {todayLessons.map(l => (
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fbbf24", marginBottom: 14 }}>📅 오늘 수업 ({todayDay})</div>
+              {todayLessons.length === 0 ? <div style={{ color: "#4b5563", fontSize: 13 }}>오늘 수업 없음</div> : todayLessons.map(l => (
                 <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #2a2a38" }}>
                   <div><span style={{ fontWeight: 500 }}>{l.student}</span><span style={{ marginLeft: 8, fontSize: 12, color: "#818cf8" }}>{l.course}</span></div>
                   <span style={{ fontSize: 13, color: "#6b7280" }}>{l.time}</span>
@@ -228,7 +273,7 @@ export default function App() {
             </div>
             <div style={{ ...S.card }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#c084fc", marginBottom: 14 }}>📝 최근 과제</div>
-              {initialHomework.slice(0, 4).map(h => (
+              {homework.length === 0 ? <div style={{ color: "#4b5563", fontSize: 13 }}>등록된 과제 없음</div> : homework.slice(-4).reverse().map(h => (
                 <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #2a2a38" }}>
                   <div><span style={{ fontWeight: 500 }}>{h.student}</span><span style={{ marginLeft: 8, fontSize: 12, color: "#6b7280" }}>{h.task}</span></div>
                   <span style={S.pill(h.submitted)}>{h.submitted ? "제출" : "미제출"}</span>
@@ -237,7 +282,7 @@ export default function App() {
             </div>
             <div style={{ ...S.card }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#34d399", marginBottom: 14 }}>📊 최근 시험</div>
-              {initialExams.map(e => (
+              {exams.length === 0 ? <div style={{ color: "#4b5563", fontSize: 13 }}>등록된 시험 없음</div> : exams.slice(-4).reverse().map(e => (
                 <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #2a2a38" }}>
                   <div><span style={{ fontWeight: 500 }}>{e.student}</span><span style={{ marginLeft: 8, fontSize: 12, color: "#6b7280" }}>{e.exam}</span></div>
                   <span style={{ fontSize: 15, fontWeight: 700, color: e.score >= 90 ? "#34d399" : e.score >= 75 ? "#fbbf24" : "#f87171" }}>{e.score}점</span>
@@ -247,73 +292,91 @@ export default function App() {
           </div>
         </>}
 
-        {/* ── 학생 관리 ── */}
+        {/* 학생 관리 */}
         {tab === "students" && <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
             <div><h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 4 }}>학생 관리</h1><p style={{ color: "#6b7280", fontSize: 14 }}>전체 {students.length}명</p></div>
             <button onClick={() => setShowAdd(true)} style={{ background: "#c084fc", color: "#0f0f13", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>+ 학생 추가</button>
           </div>
-          <input placeholder="이름, 학교, 학년 검색..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width: "100%", padding: "11px 16px", borderRadius: 10, border: "1px solid #2a2a38", background: "#18181f", color: "#e8e4f0", fontSize: 14, fontFamily: "'Noto Sans KR', sans-serif", marginBottom: 14 }} />
-          <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 2fr 1fr", padding: "12px 20px", background: "#1e1e2e", fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-              <span>이름</span><span>학교</span><span>학년</span><span>수강과목</span><span>납부</span>
+          <input placeholder="이름, 학교, 학년 검색..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inputStyle, marginBottom: 14 }} />
+          {students.length === 0 ? (
+            <div style={{ ...S.card, textAlign: "center", padding: 48, color: "#4b5563" }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
+              <div>아직 등록된 학생이 없어요</div>
+              <div style={{ fontSize: 12, marginTop: 6 }}>+ 학생 추가 버튼을 눌러 시작하세요</div>
             </div>
-            {filtered.map(s => (
-              <div key={s.id} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 2fr 1fr", padding: "14px 20px", borderTop: "1px solid #2a2a38", alignItems: "center", fontSize: 14 }}>
-                <span style={{ fontWeight: 500 }}>{s.name}</span>
-                <span><span style={S.tag(sc(s.school))}>{s.school}</span></span>
-                <span style={{ color: "#9ca3af" }}>{s.grade}</span>
-                <span style={{ color: "#818cf8", fontSize: 12 }}>{s.courses.join(", ")}</span>
-                <button onClick={() => togglePaid(s.id)} style={{ ...S.pill(s.paid), cursor: "pointer", border: `1px solid ${s.paid ? "#34d39944" : "#f8717144"}`, background: s.paid ? "#052e1622" : "#450a0a22", fontFamily: "'Noto Sans KR', sans-serif" }}>{s.paid ? "완납" : "미납"}</button>
+          ) : (
+            <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 2fr 1fr 0.5fr", padding: "12px 20px", background: "#1e1e2e", fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
+                <span>이름</span><span>학교</span><span>학년</span><span>수강과목</span><span>납부</span><span></span>
               </div>
-            ))}
-          </div>
-          {showAdd && (
-            <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-              <div style={{ ...S.card, width: 400, padding: 32 }}>
-                <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, marginBottom: 20 }}>학생 추가</h2>
-                {[{ label: "이름", key: "name", ph: "홍길동" }, { label: "학교", key: "school", ph: "홀로중, 위드고..." }, { label: "학년", key: "grade", ph: "중2, 고1..." }, { label: "수강과목", key: "courses", ph: "코어그래머, 쎈 (쉼표 구분)" }].map(f => (
-                  <div key={f.key} style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 5 }}>{f.label}</div>
-                    <input placeholder={f.ph} value={newS[f.key]} onChange={e => setNewS({ ...newS, [f.key]: e.target.value })}
-                      style={{ width: "100%", padding: "10px 14px", borderRadius: 9, border: "1px solid #2a2a38", background: "#0f0f13", color: "#e8e4f0", fontSize: 14, fontFamily: "'Noto Sans KR', sans-serif" }} />
-                  </div>
-                ))}
-                <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-                  <button onClick={addStudent} style={{ flex: 1, background: "#c084fc", color: "#0f0f13", border: "none", borderRadius: 9, padding: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>추가</button>
-                  <button onClick={() => setShowAdd(false)} style={{ flex: 1, background: "#1e1e2e", color: "#9ca3af", border: "1px solid #2a2a38", borderRadius: 9, padding: "11px", cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>취소</button>
+              {filtered.map(s => (
+                <div key={s.id} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 2fr 1fr 0.5fr", padding: "14px 20px", borderTop: "1px solid #2a2a38", alignItems: "center", fontSize: 14 }}>
+                  <span style={{ fontWeight: 500 }}>{s.name}</span>
+                  <span><span style={S.tag(sc(s.school))}>{s.school}</span></span>
+                  <span style={{ color: "#9ca3af" }}>{s.grade}</span>
+                  <span style={{ color: "#818cf8", fontSize: 12 }}>{s.courses.join(", ")}</span>
+                  <button onClick={() => togglePaid(s.id)} style={{ ...S.pill(s.paid), cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>{s.paid ? "완납" : "미납"}</button>
+                  <button onClick={() => deleteStudent(s.id)} style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", fontSize: 16 }}>🗑</button>
                 </div>
-              </div>
+              ))}
             </div>
+          )}
+          {showAdd && (
+            <Modal title="학생 추가" onClose={() => setShowAdd(false)} onSave={addStudent}>
+              <Field label="이름"><input placeholder="홍길동" value={newS.name} onChange={e => setNewS({ ...newS, name: e.target.value })} style={inputStyle} /></Field>
+              <Field label="학교"><input placeholder="홀로중, 위드고..." value={newS.school} onChange={e => setNewS({ ...newS, school: e.target.value })} style={inputStyle} /></Field>
+              <Field label="학년"><input placeholder="중2, 고1..." value={newS.grade} onChange={e => setNewS({ ...newS, grade: e.target.value })} style={inputStyle} /></Field>
+              <Field label="수강과목 (쉼표로 구분)"><input placeholder="코어그래머, 쎈" value={newS.courses} onChange={e => setNewS({ ...newS, courses: e.target.value })} style={inputStyle} /></Field>
+            </Modal>
           )}
         </>}
 
-        {/* ── 수업 일정 ── */}
+        {/* 수업 일정 */}
         {tab === "lessons" && <>
-          <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 24 }}>수업 일정</h1>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+            <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28 }}>수업 일정</h1>
+            <button onClick={() => setShowAddLesson(true)} style={{ background: "#c084fc", color: "#0f0f13", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>+ 수업 추가</button>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 14 }}>
             {DAYS.map(day => (
               <div key={day} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
-                <div style={{ background: "#1e1e2e", padding: "10px 14px", fontSize: 13, fontWeight: 700, color: "#c084fc", textAlign: "center" }}>{day}요일</div>
-                {initialLessons.filter(l => l.day === day).map(l => (
-                  <div key={l.id} style={{ padding: "12px 14px", borderTop: "1px solid #2a2a38" }}>
+                <div style={{ background: "#1e1e2e", padding: "10px 14px", fontSize: 13, fontWeight: 700, color: day === todayDay ? "#fbbf24" : "#c084fc", textAlign: "center" }}>{day}요일</div>
+                {lessons.filter(l => l.day === day).map(l => (
+                  <div key={l.id} style={{ padding: "12px 14px", borderTop: "1px solid #2a2a38", position: "relative" }}>
                     <div style={{ fontWeight: 500, fontSize: 14 }}>{l.student}</div>
                     <div style={{ fontSize: 12, color: "#818cf8", marginTop: 2 }}>{l.course}</div>
                     <div style={{ fontSize: 11, color: "#6b7280", marginTop: 3 }}>{l.time}</div>
+                    <button onClick={() => deleteLesson(l.id)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "#374151", cursor: "pointer", fontSize: 13 }}>✕</button>
                   </div>
                 ))}
-                {initialLessons.filter(l => l.day === day).length === 0 && <div style={{ padding: "16px 14px", fontSize: 12, color: "#374151", textAlign: "center" }}>수업 없음</div>}
+                {lessons.filter(l => l.day === day).length === 0 && <div style={{ padding: "16px 14px", fontSize: 12, color: "#374151", textAlign: "center" }}>수업 없음</div>}
               </div>
             ))}
           </div>
+          {showAddLesson && (
+            <Modal title="수업 추가" onClose={() => setShowAddLesson(false)} onSave={addLesson}>
+              <Field label="요일">
+                <select value={newL.day} onChange={e => setNewL({ ...newL, day: e.target.value })} style={selectStyle}>
+                  {DAYS.map(d => <option key={d} value={d}>{d}요일</option>)}
+                </select>
+              </Field>
+              <Field label="학생">
+                <select value={newL.student} onChange={e => setNewL({ ...newL, student: e.target.value })} style={selectStyle}>
+                  <option value="">-- 선택 --</option>
+                  {students.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </Field>
+              <Field label="과목"><input placeholder="코어그래머" value={newL.course} onChange={e => setNewL({ ...newL, course: e.target.value })} style={inputStyle} /></Field>
+              <Field label="시간"><input placeholder="15:00" value={newL.time} onChange={e => setNewL({ ...newL, time: e.target.value })} style={inputStyle} /></Field>
+            </Modal>
+          )}
         </>}
 
-        {/* ── 커리큘럼 ── */}
+        {/* 커리큘럼 */}
         {tab === "curriculum" && <>
           <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 4 }}>커리큘럼 & 현 위치</h1>
           <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>전체 목표 로드맵과 각 학생의 현재 진도</p>
-
           <div style={{ ...S.card, marginBottom: 24 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "#c084fc", marginBottom: 22 }}>📍 전체 커리큘럼 로드맵</div>
             <div style={{ display: "flex", alignItems: "flex-start" }}>
@@ -329,45 +392,52 @@ export default function App() {
               ))}
             </div>
           </div>
-
-          <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: "13px 22px", background: "#1e1e2e", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>학생별 현재 위치</div>
-            {students.map(s => {
-              const pct = ((s.curriculumStep - 1) / (CURRICULUM_STEPS.length - 1)) * 100;
-              const step = CURRICULUM_STEPS[s.curriculumStep - 1];
-              return (
-                <div key={s.id} style={{ padding: "18px 22px", borderTop: "1px solid #2a2a38" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontWeight: 600 }}>{s.name}</span>
-                      <span style={S.tag(sc(s.school))}>{s.school}</span>
-                      <span style={{ fontSize: 12, color: "#6b7280" }}>{s.grade}</span>
+          {students.length === 0 ? (
+            <div style={{ ...S.card, textAlign: "center", padding: 48, color: "#4b5563" }}>학생을 먼저 등록해주세요</div>
+          ) : (
+            <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+              <div style={{ padding: "13px 22px", background: "#1e1e2e", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>학생별 현재 위치</div>
+              {students.map(s => {
+                const pct = ((s.curriculumStep - 1) / (CURRICULUM_STEPS.length - 1)) * 100;
+                const step = CURRICULUM_STEPS[s.curriculumStep - 1];
+                return (
+                  <div key={s.id} style={{ padding: "18px 22px", borderTop: "1px solid #2a2a38" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontWeight: 600 }}>{s.name}</span>
+                        <span style={S.tag(sc(s.school))}>{s.school}</span>
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{s.grade}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#c084fc" }}>STEP {s.curriculumStep}</span>
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{step?.label}</span>
+                        <select value={s.curriculumStep} onChange={e => updateCurriculum(s.id, parseInt(e.target.value))}
+                          style={{ ...selectStyle, width: "auto", padding: "4px 8px", fontSize: 12 }}>
+                          {CURRICULUM_STEPS.map(cs => <option key={cs.step} value={cs.step}>STEP {cs.step}</option>)}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#c084fc" }}>STEP {s.curriculumStep}</span>
-                      <span style={{ fontSize: 12, color: "#6b7280", marginLeft: 6 }}>{step?.label}</span>
+                    <div style={{ background: "#2a2a38", borderRadius: 99, height: 7, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#818cf8,#c084fc)", borderRadius: 99, transition: "width 0.4s" }} />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, fontSize: 11, color: "#4b5563" }}>
+                      <span>기초 문법</span><span>최종 마무리</span>
                     </div>
                   </div>
-                  <div style={{ background: "#2a2a38", borderRadius: 99, height: 7, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#818cf8,#c084fc)", borderRadius: 99 }} />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, fontSize: 11, color: "#4b5563" }}>
-                    <span>기초 문법</span><span>최종 마무리</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </>}
 
-        {/* ── 수강료 ── */}
+        {/* 수강료 */}
         {tab === "payment" && <>
           <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 24 }}>수강료 현황</h1>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
             {[{ list: paid, title: `✅ 완납 (${paid.length}명)`, color: "#34d399", action: "미납으로 변경", next: false }, { list: unpaid, title: `⚠️ 미납 (${unpaid.length}명)`, color: "#f87171", action: "납부 처리", next: true }].map(({ list, title, color, action, next }) => (
               <div key={title} style={{ ...S.card }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color, marginBottom: 16 }}>{title}</div>
-                {list.length === 0 ? <div style={{ color: "#4b5563", fontSize: 13 }}>미납자 없음 🎉</div> : list.map(s => (
+                {list.length === 0 ? <div style={{ color: "#4b5563", fontSize: 13 }}>{next ? "미납자 없음 🎉" : "완납자 없음"}</div> : list.map(s => (
                   <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #2a2a38", alignItems: "center" }}>
                     <div><span style={{ fontWeight: 500 }}>{s.name}</span><span style={{ marginLeft: 8, fontSize: 11, color: "#6b7280" }}>{s.grade}</span></div>
                     <button onClick={() => togglePaid(s.id)} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: next ? "#052e1622" : "#450a0a22", color: next ? "#34d399" : "#f87171", border: `1px solid ${next ? "#34d39944" : "#f8717144"}`, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>{action}</button>
@@ -378,70 +448,115 @@ export default function App() {
           </div>
         </>}
 
-        {/* ── 과제 ── */}
+        {/* 과제 */}
         {tab === "homework" && <>
-          <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 24 }}>과제 현황</h1>
-          <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr", padding: "12px 20px", background: "#1e1e2e", fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-              <span>학생</span><span>과제</span><span>날짜</span><span>제출여부</span>
-            </div>
-            {initialHomework.map(h => (
-              <div key={h.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr", padding: "14px 20px", borderTop: "1px solid #2a2a38", alignItems: "center", fontSize: 14 }}>
-                <span style={{ fontWeight: 500 }}>{h.student}</span>
-                <span style={{ color: "#9ca3af" }}>{h.task}</span>
-                <span style={{ color: "#6b7280", fontSize: 12 }}>{h.date}</span>
-                <span style={S.pill(h.submitted)}>{h.submitted ? "제출완료" : "미제출"}</span>
-              </div>
-            ))}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+            <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28 }}>과제 현황</h1>
+            <button onClick={() => setShowAddHW(true)} style={{ background: "#c084fc", color: "#0f0f13", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>+ 과제 추가</button>
           </div>
+          {homework.length === 0 ? (
+            <div style={{ ...S.card, textAlign: "center", padding: 48, color: "#4b5563" }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>📝</div>
+              <div>등록된 과제가 없어요</div>
+            </div>
+          ) : (
+            <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 0.5fr", padding: "12px 20px", background: "#1e1e2e", fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
+                <span>학생</span><span>과제</span><span>날짜</span><span>제출여부</span><span></span>
+              </div>
+              {homework.map(h => (
+                <div key={h.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 0.5fr", padding: "14px 20px", borderTop: "1px solid #2a2a38", alignItems: "center", fontSize: 14 }}>
+                  <span style={{ fontWeight: 500 }}>{h.student}</span>
+                  <span style={{ color: "#9ca3af" }}>{h.task}</span>
+                  <span style={{ color: "#6b7280", fontSize: 12 }}>{h.date}</span>
+                  <button onClick={() => toggleHW(h.id)} style={{ ...S.pill(h.submitted), cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>{h.submitted ? "제출완료" : "미제출"}</button>
+                  <button onClick={() => deleteHW(h.id)} style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", fontSize: 16 }}>🗑</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {showAddHW && (
+            <Modal title="과제 추가" onClose={() => setShowAddHW(false)} onSave={addHW}>
+              <Field label="학생">
+                <select value={newHW.student} onChange={e => setNewHW({ ...newHW, student: e.target.value })} style={selectStyle}>
+                  <option value="">-- 선택 --</option>
+                  {students.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </Field>
+              <Field label="과제명"><input placeholder="코어그래머 Unit 3" value={newHW.task} onChange={e => setNewHW({ ...newHW, task: e.target.value })} style={inputStyle} /></Field>
+              <Field label="날짜"><input type="date" value={newHW.date} onChange={e => setNewHW({ ...newHW, date: e.target.value })} style={inputStyle} /></Field>
+            </Modal>
+          )}
         </>}
 
-        {/* ── 시험 ── */}
+        {/* 시험 */}
         {tab === "exams" && <>
-          <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 24 }}>시험 결과</h1>
-          <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 1fr", padding: "12px 20px", background: "#1e1e2e", fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-              <span>학생</span><span>시험명</span><span>과목</span><span>점수</span><span>날짜</span>
-            </div>
-            {initialExams.map(e => (
-              <div key={e.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 1fr", padding: "14px 20px", borderTop: "1px solid #2a2a38", alignItems: "center", fontSize: 14 }}>
-                <span style={{ fontWeight: 500 }}>{e.student}</span>
-                <span style={{ color: "#9ca3af" }}>{e.exam}</span>
-                <span style={{ ...S.tag("#818cf8") }}>{e.subject}</span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: e.score >= 90 ? "#34d399" : e.score >= 75 ? "#fbbf24" : "#f87171" }}>{e.score}점</span>
-                <span style={{ color: "#6b7280", fontSize: 12 }}>{e.date}</span>
-              </div>
-            ))}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+            <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28 }}>시험 결과</h1>
+            <button onClick={() => setShowAddExam(true)} style={{ background: "#c084fc", color: "#0f0f13", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}>+ 시험 추가</button>
           </div>
+          {exams.length === 0 ? (
+            <div style={{ ...S.card, textAlign: "center", padding: 48, color: "#4b5563" }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+              <div>등록된 시험 결과가 없어요</div>
+            </div>
+          ) : (
+            <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 1fr 0.5fr", padding: "12px 20px", background: "#1e1e2e", fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
+                <span>학생</span><span>시험명</span><span>과목</span><span>점수</span><span>날짜</span><span></span>
+              </div>
+              {exams.map(e => (
+                <div key={e.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 1fr 0.5fr", padding: "14px 20px", borderTop: "1px solid #2a2a38", alignItems: "center", fontSize: 14 }}>
+                  <span style={{ fontWeight: 500 }}>{e.student}</span>
+                  <span style={{ color: "#9ca3af" }}>{e.exam}</span>
+                  <span style={{ ...S.tag("#818cf8") }}>{e.subject}</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: e.score >= 90 ? "#34d399" : e.score >= 75 ? "#fbbf24" : "#f87171" }}>{e.score}점</span>
+                  <span style={{ color: "#6b7280", fontSize: 12 }}>{e.date}</span>
+                  <button onClick={() => deleteExam(e.id)} style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", fontSize: 16 }}>🗑</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {showAddExam && (
+            <Modal title="시험 결과 추가" onClose={() => setShowAddExam(false)} onSave={addExam}>
+              <Field label="학생">
+                <select value={newExam.student} onChange={e => setNewExam({ ...newExam, student: e.target.value })} style={selectStyle}>
+                  <option value="">-- 선택 --</option>
+                  {students.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </Field>
+              <Field label="시험명"><input placeholder="1학기 중간고사" value={newExam.exam} onChange={e => setNewExam({ ...newExam, exam: e.target.value })} style={inputStyle} /></Field>
+              <Field label="과목"><input placeholder="영어, 수학..." value={newExam.subject} onChange={e => setNewExam({ ...newExam, subject: e.target.value })} style={inputStyle} /></Field>
+              <Field label="점수"><input type="number" placeholder="88" value={newExam.score} onChange={e => setNewExam({ ...newExam, score: e.target.value })} style={inputStyle} /></Field>
+              <Field label="날짜"><input type="date" value={newExam.date} onChange={e => setNewExam({ ...newExam, date: e.target.value })} style={inputStyle} /></Field>
+            </Modal>
+          )}
         </>}
 
-        {/* ── 학부모 메시지 ── */}
+        {/* 학부모 메시지 */}
         {tab === "message" && <>
           <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, marginBottom: 4 }}>학부모 메시지</h1>
           <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>AI가 학부모께 보낼 문자를 자동으로 작성해드려요</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 24 }}>
             <div style={{ ...S.card }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#c084fc", marginBottom: 18 }}>✏️ 메시지 설정</div>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>학생 선택</div>
-                <select value={msgStudent} onChange={e => setMsgStudent(e.target.value)}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 9, border: "1px solid #2a2a38", background: "#0f0f13", color: msgStudent ? "#e8e4f0" : "#4b5563", fontSize: 14, fontFamily: "'Noto Sans KR', sans-serif" }}>
+              <Field label="학생 선택">
+                <select value={msgStudent} onChange={e => setMsgStudent(e.target.value)} style={selectStyle}>
                   <option value="">-- 학생 선택 --</option>
                   {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.grade})</option>)}
                 </select>
-              </div>
+              </Field>
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>메시지 유형</div>
                 {MSG_TEMPLATES.map(t => (
                   <button key={t.key} onClick={() => setMsgTemplate(t.key)} style={{ display: "block", width: "100%", padding: "9px 14px", borderRadius: 9, border: `1px solid ${msgTemplate === t.key ? "#c084fc" : "#2a2a38"}`, background: msgTemplate === t.key ? "#c084fc18" : "transparent", color: msgTemplate === t.key ? "#c084fc" : "#9ca3af", fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "'Noto Sans KR', sans-serif", marginBottom: 6 }}>{t.label}</button>
                 ))}
               </div>
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>추가 정보 (선택)</div>
+              <Field label="추가 정보 (선택)">
                 <textarea value={msgExtra} onChange={e => setMsgExtra(e.target.value)} placeholder="예: 이번 주 시험 88점, 수업 태도 좋음..." rows={3}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 9, border: "1px solid #2a2a38", background: "#0f0f13", color: "#e8e4f0", fontSize: 13, fontFamily: "'Noto Sans KR', sans-serif", resize: "vertical" }} />
-              </div>
-              <button onClick={handleGen} disabled={!msgStudent || msgLoading} style={{ width: "100%", background: msgStudent ? "#c084fc" : "#2a2a38", color: msgStudent ? "#0f0f13" : "#4b5563", border: "none", borderRadius: 10, padding: "13px", fontWeight: 700, fontSize: 15, cursor: msgStudent ? "pointer" : "not-allowed", fontFamily: "'Noto Sans KR', sans-serif" }}>
+                  style={{ ...inputStyle, resize: "vertical" }} />
+              </Field>
+              <button onClick={handleGen} disabled={!msgStudent || msgLoading} style={{ width: "100%", background: msgStudent ? "#c084fc" : "#2a2a38", color: msgStudent ? "#0f0f13" : "#4b5563", border: "none", borderRadius: 10, padding: "13px", fontWeight: 700, fontSize: 15, cursor: msgStudent ? "pointer" : "not-allowed", fontFamily: "'Noto Sans KR', sans-serif", marginTop: 4 }}>
                 {msgLoading ? "✨ 생성 중..." : "✨ 메시지 생성"}
               </button>
             </div>
