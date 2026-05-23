@@ -66,16 +66,73 @@ const AddStudentModal = memo(({ onClose, onSave }) => {
   );
 });
 
+// ── 내신 교재 순서 ──
+const NAESIN_BOOKS = ["교과서", "교과서변형", "Tee-Ball", "FUNGO&ENTRY", "부교재", "변형문제", "기출문제"];
+const SUNEUNG_BOOKS = ["교과서", "Tee-Ball", "FUNGO&ENTRY", "최신기출문제", "수능특강선별문제", "수능완성선별문제", "HITS", "HOMERUN", "TRIPLECROWN"];
+
 // ── 커리큘럼 단계 추가 행 ──
-const CurriculumAddRow = memo(({ onAdd }) => {
+const CurriculumAddRow = memo(({ onAdd, onAddUnit }) => {
   const [label, setLabel] = useState("");
   const [desc, setDesc] = useState("");
+  const [unitName, setUnitName] = useState("");
+  const [mode, setMode] = useState("unit");
+  const [currType, setCurrType] = useState("naesin"); // "naesin" | "suneung"
+
   const handleAdd = () => { if (!label.trim()) return; onAdd(label.trim(), desc.trim()); setLabel(""); setDesc(""); };
+  const handleAddUnit = () => { if (!unitName.trim()) return; onAddUnit(unitName.trim(), currType); setUnitName(""); };
+
+  const books = currType === "naesin" ? NAESIN_BOOKS : SUNEUNG_BOOKS;
+
   return (
-    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-      <input placeholder="단계 이름" value={label} onChange={e => setLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} style={{ flex: 2, ...inp, padding: "8px 12px", fontSize: 13 }} />
-      <input placeholder="설명 (선택)" value={desc} onChange={e => setDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} style={{ flex: 1, ...inp, padding: "8px 12px", fontSize: 13 }} />
-      <button onClick={handleAdd} style={{ ...btnPurple, padding: "8px 14px", fontSize: 13, borderRadius: 8 }}>+ 추가</button>
+    <div style={{ marginTop: 14, borderTop: "1px solid #2a2a38", paddingTop: 14 }}>
+      {/* 모드 선택 */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button onClick={() => setMode("unit")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `1px solid ${mode === "unit" ? "#c084fc" : "#2a2a38"}`, background: mode === "unit" ? "#c084fc18" : "transparent", color: mode === "unit" ? "#c084fc" : "#6b7280", cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 13 }}>
+          🎯 단원 자동생성
+        </button>
+        <button onClick={() => setMode("single")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `1px solid ${mode === "single" ? "#c084fc" : "#2a2a38"}`, background: mode === "single" ? "#c084fc18" : "transparent", color: mode === "single" ? "#c084fc" : "#6b7280", cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 13 }}>
+          ✏️ 직접 입력
+        </button>
+      </div>
+
+      {mode === "unit" && (
+        <div>
+          {/* 내신 / 수능 선택 */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            {[{ v: "naesin", label: "📚 내신", count: NAESIN_BOOKS.length }, { v: "suneung", label: "🎯 수능", count: SUNEUNG_BOOKS.length }].map(({ v, label, count }) => (
+              <button key={v} onClick={() => setCurrType(v)} style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${currType === v ? "#fbbf24" : "#2a2a38"}`, background: currType === v ? "#fbbf2418" : "transparent", color: currType === v ? "#fbbf24" : "#6b7280", cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 12 }}>
+                {label} ({count}단계)
+              </button>
+            ))}
+          </div>
+          {/* 교재 미리보기 */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+            {books.map((b, i) => (
+              <span key={i} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "#1e1e2e", color: "#9ca3af", border: "1px solid #2a2a38" }}>{b}</span>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              placeholder="단원 이름 입력 (예: 대수(삼각함수활용))"
+              value={unitName}
+              onChange={e => setUnitName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleAddUnit()}
+              style={{ flex: 1, ...inp, padding: "9px 12px", fontSize: 13 }}
+            />
+            <button onClick={handleAddUnit} style={{ ...btnPurple, padding: "9px 16px", fontSize: 13, borderRadius: 8, whiteSpace: "nowrap" }}>
+              자동 생성 ✨
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === "single" && (
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="단계 이름" value={label} onChange={e => setLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} style={{ flex: 2, ...inp, padding: "9px 12px", fontSize: 13 }} />
+          <input placeholder="설명 (선택)" value={desc} onChange={e => setDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} style={{ flex: 1, ...inp, padding: "9px 12px", fontSize: 13 }} />
+          <button onClick={handleAdd} style={{ ...btnPurple, padding: "9px 14px", fontSize: 13, borderRadius: 8 }}>+ 추가</button>
+        </div>
+      )}
     </div>
   );
 });
@@ -153,6 +210,12 @@ export default function App() {
   // 커리큘럼
   const addCurrStep = useCallback((sid, label, desc) => {
     setStudents(p => p.map(s => s.id === sid ? { ...s, curriculum: [...(s.curriculum||[]), { id: Date.now(), label, desc, done: false }] } : s));
+  }, [setStudents]);
+
+  const addCurrUnit = useCallback((sid, unitName, type) => {
+    const books = type === "suneung" ? SUNEUNG_BOOKS : NAESIN_BOOKS;
+    const newSteps = books.map((book, i) => ({ id: Date.now() + i, label: unitName, desc: book, done: false }));
+    setStudents(p => p.map(s => s.id === sid ? { ...s, curriculum: [...(s.curriculum||[]), ...newSteps] } : s));
   }, [setStudents]);
   const toggleCurrStep = useCallback((sid, cid) => {
     setStudents(p => p.map(s => s.id === sid ? { ...s, curriculum: s.curriculum.map(c => c.id === cid ? { ...c, done: !c.done } : c) } : s));
@@ -431,7 +494,7 @@ ${plan || "목표 미설정"}
                     <button onClick={() => deleteCurrStep(selStudent.id, c.id)} style={{ background: "none", border: "none", color: "#374151", cursor: "pointer", fontSize: 14 }}>✕</button>
                   </div>
                 ))}
-                <CurriculumAddRow onAdd={(label, desc) => addCurrStep(selStudent.id, label, desc)} />
+                <CurriculumAddRow onAdd={(label, desc) => addCurrStep(selStudent.id, label, desc)} onAddUnit={(unitName, type) => addCurrUnit(selStudent.id, unitName, type)} />
               </div>
             );
           })()}
