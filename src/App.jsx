@@ -68,7 +68,10 @@ const AddStudentModal = memo(({ onClose, onSave }) => {
 
 // ── 내신 교재 순서 ──
 const NAESIN_BOOKS = ["교과서", "교과서변형", "Tee-Ball", "FUNGO&ENTRY", "부교재", "변형문제", "기출문제"];
+const NAESIN_MIDDLE_BOOKS = ["교과서", "교과서변형", "최다빈출", "기본", "발전", "심화", "기출변형", "기출", "기출예상"];
 const SUNEUNG_BOOKS = ["교과서", "Tee-Ball", "FUNGO&ENTRY", "최신기출문제", "수능특강선별문제", "수능완성선별문제", "HITS", "HOMERUN", "TRIPLECROWN"];
+const SUNHAENG_MIDDLE_BOOKS = ["개념원리", "변형문제", "일품", "변형및취약문제(일품)", "블랙라벨", "변형및취약문제(블랙라벨)", "고쟁이", "변형및취약문제(고쟁이)", "에이급", "변형및취약문제(에이급)"];
+const SUNHAENG_HIGH_BOOKS = ["교과서", "Tee-Ball", "FUNGO&ENTRY", "일품", "블랙라벨", "고쟁이", "TOT", "수학의신", "자체교재"];
 
 // ── 커리큘럼 단계 추가 행 ──
 const CurriculumAddRow = memo(({ onAdd, onAddUnit }) => {
@@ -81,7 +84,7 @@ const CurriculumAddRow = memo(({ onAdd, onAddUnit }) => {
   const handleAdd = () => { if (!label.trim()) return; onAdd(label.trim(), desc.trim()); setLabel(""); setDesc(""); };
   const handleAddUnit = () => { if (!unitName.trim()) return; onAddUnit(unitName.trim(), currType); setUnitName(""); };
 
-  const books = currType === "naesin" ? NAESIN_BOOKS : SUNEUNG_BOOKS;
+  const books = currType === "suneung" ? SUNEUNG_BOOKS : currType === "naesin_middle" ? NAESIN_MIDDLE_BOOKS : currType === "sunhaeng_middle" ? SUNHAENG_MIDDLE_BOOKS : currType === "sunhaeng_high" ? SUNHAENG_HIGH_BOOKS : NAESIN_BOOKS;
 
   return (
     <div style={{ marginTop: 14, borderTop: "1px solid #2a2a38", paddingTop: 14 }}>
@@ -99,7 +102,13 @@ const CurriculumAddRow = memo(({ onAdd, onAddUnit }) => {
         <div>
           {/* 내신 / 수능 선택 */}
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            {[{ v: "naesin", label: "📚 내신", count: NAESIN_BOOKS.length }, { v: "suneung", label: "🎯 수능", count: SUNEUNG_BOOKS.length }].map(({ v, label, count }) => (
+            {[
+            { v: "naesin", label: "📚 고등내신", count: NAESIN_BOOKS.length },
+            { v: "naesin_middle", label: "📗 중등내신", count: NAESIN_MIDDLE_BOOKS.length },
+            { v: "suneung", label: "🎯 수능", count: SUNEUNG_BOOKS.length },
+            { v: "sunhaeng_middle", label: "📘 중등선행", count: SUNHAENG_MIDDLE_BOOKS.length },
+            { v: "sunhaeng_high", label: "📙 고등선행", count: SUNHAENG_HIGH_BOOKS.length },
+          ].map(({ v, label, count }) => (
               <button key={v} onClick={() => setCurrType(v)} style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${currType === v ? "#fbbf24" : "#2a2a38"}`, background: currType === v ? "#fbbf2418" : "transparent", color: currType === v ? "#fbbf24" : "#6b7280", cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 12 }}>
                 {label} ({count}단계)
               </button>
@@ -213,7 +222,11 @@ export default function App() {
   }, [setStudents]);
 
   const addCurrUnit = useCallback((sid, unitName, type) => {
-    const books = type === "suneung" ? SUNEUNG_BOOKS : NAESIN_BOOKS;
+    const books = type === "suneung" ? SUNEUNG_BOOKS
+      : type === "naesin_middle" ? NAESIN_MIDDLE_BOOKS
+      : type === "sunhaeng_middle" ? SUNHAENG_MIDDLE_BOOKS
+      : type === "sunhaeng_high" ? SUNHAENG_HIGH_BOOKS
+      : NAESIN_BOOKS;
     const newSteps = books.map((book, i) => ({ id: Date.now() + i, label: unitName, desc: book, done: false }));
     setStudents(p => p.map(s => s.id === sid ? { ...s, curriculum: [...(s.curriculum||[]), ...newSteps] } : s));
   }, [setStudents]);
